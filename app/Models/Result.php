@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Exam extends Model
+class Result extends Model
 {
     use HasFactory;
-    protected $fillable = ['question', 'user_id', 'start_time', 'end_time', 'duration', 'category', 'is_completed'];
+
+    protected $fillable = ['result', 'exam_id', 'reward', 'user_id', 'grading'];
 
     public function user()
     {
