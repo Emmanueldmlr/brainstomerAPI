@@ -17,4 +17,22 @@ class ExamController extends Controller
     public function getQuestions(){
         return $this->examService->prepareUserExam();
     }
+
+    public function startExam(Request $request){
+        return $this->examService->startExam($request);
+    }
+
+    public function resumeExam(Request $request){
+        return $this->examService->resumeExam($request);
+    }
+
+    public function gradeExam(Request $request){
+        return $this->examService->gradeExam($request);
+    }
+
+    public function reviewExam(Request $request){
+        return $this->examService->getExamReview($request);
+    }
+
+
 }
