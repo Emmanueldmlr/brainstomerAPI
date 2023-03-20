@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Data\QuestionBank;
 use App\Models\Exam;
+use App\Models\Result;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -10,15 +12,23 @@ use Illuminate\Support\Facades\Auth;
 
 class ExamService
 {
-    public function prepareUserExam(){
+    private function calculateReward($score, $total){
+        $percentage = ($score/$total)*100;
+        if($percentage < 50){
+            return 0;
+        }
+        return $percentage * 10;
+    }
+    public function prepareUserExam(Request $request){
         try{
-            $questions = $this->getQuestions();
+            $questionBank = $this->getQuestions($request->wiki_id);
             $examInstance = new Exam();
-            $exam = $examInstance->create($questions);
-            $questions = $this->removeAnswer($exam->question);
+            $questions = $this->removeAnswer($questionBank["questions"]);
+            $exam = $examInstance->create($questionBank["questions"]);
             $data = [
                 'status' => true,
-                'questions' => $questions
+                'questions' => $questions,
+                'exam_id' => $exam->id
             ];
             return response($data, 200);
         }
@@ -78,11 +88,44 @@ class ExamService
             'time_remaining' => $timeSinceStart
         ];
         return response($data, 200);
-
     }
 
-    public function gradeExam(){
+    public function gradeExam(Request $request){
+        $getExam = Exam::where(['id' => $request->exam_id, 'user_id' => Auth::user()->id])->first();
+        if(!$getExam){
+            $data = [
+                'status' => false,
+                'message' => 'Exam does not exist'
+            ];
+            return response($data, 404);
+        }
+        $score = $this->markExam($getExam->question, $request->script);
+        $getExam->end_time = now();
+        $getExam->is_completed = true;
+        $getExam->save();
+        $resultInstance = new Result();
+        $totalQuestion = count($getExam->question);
+        $reward = $this->calculateReward($score, $totalQuestion);
+        $resultInstance->create($score,$totalQuestion ,$request->exam_id,$reward);
+        $data = [
+            'status' => false,
+            'result' => ($score/$totalQuestion)*100,
+            'reward' => $reward,
+            'score' => $score,
+            "msg" => "Exam Successfully completed"
+        ];
+        return response($data, 200);
+    }
 
+    private function markExam($markingGuides, $script){
+        $score = 0;
+        foreach ($script as $userAnswer) {
+            $markingGuide = $markingGuides[array_search($userAnswer['id'], array_column($markingGuides, 'id'))];
+            if ($userAnswer['selectedAnswer'] == $markingGuide['answer']) {
+                $score++;
+            }
+        }
+        return $score;
     }
 
     public function getExamReview(Request $request){
@@ -114,8 +157,8 @@ class ExamService
         return $timeDifferenceInSeconds;
     }
 
-    public function getQuestions(){
-        return $this->fetchQuestionsFromModel("jdjdjdjd");
+    public function getQuestions($wiki_id){
+        return $this->fetchQuestionsFromModel($wiki_id);
     }
 
     public function removeAnswer($quizQuestions) {
@@ -125,44 +168,44 @@ class ExamService
         return $quizQuestions;
     }
 
-    private function fetchQuestionsFromModel($content){
+    public function results(){
+        $results = Result::where("user_id", Auth::user()->id)->get();
+        $data = [
+            'status' => true,
+            'message' => 'Results successfully fetched',
+            'reviews' => $results
+        ];
+        return response($data, 200);
+    }
+
+    private function fetchQuestionsFromModel($wiki_id){
         try{
-            $quizQuestions = array(
-                array(
-                    'id' => 'kdjdkksldk',
-                    'question' => 'what is bitcoin?',
-                    'options' => array(
-                        'A' => 'Crypto',
-                        'B' => 'Naira'
-                    ),
-                    'answer' => 'A'
-                ),
-                array(
-                    'id' => 'kdjdkksldk',
-                    'question' => 'what is bitcoin?',
-                    'options' => array(
-                        'A' => 'Crypto',
-                        'B' => 'Naira'
-                    )
-                ),
-                array(
-                    'id' => 'kdjdkksldk',
-                    'question' => 'what is bitcoin?',
-                    'options' => array(
-                        'A' => 'Crypto',
-                        'B' => 'Naira'
-                    )
-                ),
-                array(
-                    'id' => 'kdjdkksldk',
-                    'question' => 'what is bitcoin?',
-                    'options' => array(
-                        'A' => 'Crypto',
-                        'B' => 'Naira'
-                    )
-                )
-            );
-            return $quizQuestions;
+//            $curl = curl_init();
+//            $data = [
+//                'apiKey' => '385e56a2-9407-4f73-9d1a-ea76f7c64de9',
+//                'modelKey' => '7cbf9f5a-ef49-4336-a2fe-785bc3e19b20',
+//                'modelInputs' => [
+//                    'prompt' => 'Generate ten multiple choice questions from' . $content
+//                ]
+//            ];
+//            curl_setopt_array($curl, array(
+//                CURLOPT_URL => "https://api.banana.dev/start/v4/",
+//                CURLOPT_RETURNTRANSFER => true,
+//                CURLOPT_CUSTOMREQUEST => "POST",
+//                CURLOPT_POSTFIELDS => json_encode($data),
+//                CURLOPT_HTTPHEADER => [
+//                    "content-type: application/json",
+//                    "cache-control: no-cache"
+//                ],
+//            ));
+//            $response = curl_exec($curl);
+//            $result = json_decode($response);
+//            dd($resultz);
+//            $err = curl_error($curl);
+//            return [$err, $response];
+            $questionBankInstance = new QuestionBank();
+            $questions = $questionBankInstance->getQuestions($wiki_id);
+            return $questions;
         }
         catch(\Exception $exception){
             return $exception->getMessage();

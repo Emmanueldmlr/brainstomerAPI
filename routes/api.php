@@ -26,4 +26,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/resume-exam', [ExamController::class, 'resumeExam']);
     Route::post('/grade-exam', [ExamController::class, 'gradeExam']);
     Route::get('/review-exam', [ExamController::class, 'reviewExam']);
+    Route::get('/get-results', [ExamController::class, 'results']);
 });

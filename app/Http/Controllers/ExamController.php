@@ -14,8 +14,8 @@ class ExamController extends Controller
         $this->examService = $examService;
     }
 
-    public function getQuestions(){
-        return $this->examService->prepareUserExam();
+    public function getQuestions(Request $request){
+        return $this->examService->prepareUserExam($request);
     }
 
     public function startExam(Request $request){
@@ -32,6 +32,10 @@ class ExamController extends Controller
 
     public function reviewExam(Request $request){
         return $this->examService->getExamReview($request);
+    }
+
+    public function results(){
+        return $this->examService->results();
     }
 
 
